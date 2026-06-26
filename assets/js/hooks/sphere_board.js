@@ -1,55 +1,38 @@
-// Renderer skeleton for the MineSweeperWorld board.
+// WebGL renderer for the MineSweeperWorld board (Three.js).
 //
 // Receives derived geometry (unit-sphere cell centres + adjacency edges) from
-// the server via the "board" event and draws it on a <canvas> using a simple
-// orthographic projection with drag-to-rotate. Intentionally dependency-free
-// (plain Canvas 2D); swap in WebGL/Three.js later without touching the server.
+// the server via the "board" event, derives the Goldberg polyhedron wireframe,
+// and renders it with Three.js + OrbitControls (drag-to-rotate, auto-spin).
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+const COLORS = {
+  pentagon: new THREE.Color(0xf472b6),
+  hexagon: new THREE.Color(0x38bdf8),
+  edge: new THREE.Color(0x64748b),
+};
+
 export default {
   mounted() {
     this.canvas = this.el.querySelector("canvas");
-    this.ctx = this.canvas.getContext("2d");
     this.board = { cells: [], edges: [] };
 
-    this.goldbergVertices = [];
-    this.goldbergEdges = [];
-
-    this.rotation = { x: 0, y: 0 };
-    this.dragging = false;
-    this.last = null;
-    this.autoSpin = 0.00125;
+    this.initScene();
 
     this.handleEvent("board", (board) => {
       this.board = board;
-      this.buildGoldbergGeometry();
+      this.buildMeshes();
     });
 
-    this.resize();
     this.onResize = () => this.resize();
-
     window.addEventListener("resize", this.onResize);
-
-    this.el.addEventListener("pointerdown", (e) => {
-      this.dragging = true;
-      this.last = { x: e.clientX, y: e.clientY };
-      this.el.setPointerCapture(e.pointerId);
-    });
-
-    this.el.addEventListener("pointermove", (e) => {
-      if (!this.dragging) return;
-      this.rotation.y += (e.clientX - this.last.x) * 0.01;
-      this.rotation.x += (e.clientY - this.last.y) * 0.01;
-      this.last = { x: e.clientX, y: e.clientY };
-    });
-
-    const stop = () => (this.dragging = false);
-
-    this.el.addEventListener("pointerup", stop);
-    this.el.addEventListener("pointercancel", stop);
+    this.resize();
 
     this.running = true;
     const loop = () => {
       if (!this.running) return;
-      this.draw();
+      this.controls.update();
+      this.renderer.render(this.scene, this.camera);
       this.raf = requestAnimationFrame(loop);
     };
     loop();
@@ -59,153 +42,211 @@ export default {
     this.running = false;
     if (this.raf) cancelAnimationFrame(this.raf);
     window.removeEventListener("resize", this.onResize);
+
+    this.disposeBoardMeshes();
+    if (this.pointTexture) this.pointTexture.dispose();
+    this.controls.dispose();
+    this.renderer.dispose();
+  },
+
+  initScene() {
+    this.scene = new THREE.Scene();
+
+    this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    this.camera.position.set(0, 0, 2.8);
+
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.canvas,
+      antialias: true,
+      alpha: true, // keep the element's bg-base-200 visible behind the sphere
+    });
+
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+    this.controls = new OrbitControls(this.camera, this.canvas);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.1;
+    this.controls.enablePan = false;
+    this.controls.enableZoom = false;
+    this.controls.rotateSpeed = 0.6;
+    this.controls.autoRotate = true;
+    this.controls.autoRotateSpeed = 0.6;
+
+    this.pointTexture = this.makeCircleTexture();
+    this.boardMeshes = [];
   },
 
   resize() {
     const rect = this.el.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    this.width = rect.width;
-    this.height = rect.height;
-    this.canvas.width = Math.round(rect.width * dpr);
-    this.canvas.height = Math.round(rect.height * dpr);
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!rect.width || !rect.height) return;
+    this.renderer.setSize(rect.width, rect.height, false);
+    this.camera.aspect = rect.width / rect.height;
+    this.camera.updateProjectionMatrix();
   },
 
-  buildGoldbergGeometry() {
+  // A soft round sprite so Points render as dots rather than squares.
+  makeCircleTexture() {
+    const size = 64;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.7, "rgba(255,255,255,1)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.fill();
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  },
+
+  disposeBoardMeshes() {
+    for (const mesh of this.boardMeshes) {
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+    }
+    this.boardMeshes = [];
+  },
+
+  buildMeshes() {
+    this.disposeBoardMeshes();
+
     const cells = this.board.cells;
     if (!cells || cells.length === 0) return;
 
-    const neighbors = Array.from({ length: cells.length }, () => []);
-    for (const [a, b] of this.board.edges) {
-      neighbors[a].push(b);
-      neighbors[b].push(a);
+    const goldberg = this.buildGoldbergGeometry();
+
+    if (goldberg) {
+      this.boardMeshes.push(this.buildWireframe(goldberg));
     }
 
-    const triangles = [];
-    const seenTriangles = new Set();
+    this.boardMeshes.push(this.buildCellPoints(cells));
 
+    this.boardMeshes.forEach((mesh) => this.scene.add(mesh));
+  },
+
+  // Derives the Goldberg polyhedron (corners of the hexagon/pentagon faces) from
+  // the dual cell-adjacency graph the server sends.
+  //
+  // Each Goldberg vertex is the centroid of a triangle of three mutually adjacent
+  // cells; each Goldberg edge is a cell-pair shared by exactly two such vertices.
+  //
+  // Triangle membership uses neighbour Sets (O(1) lookups), and edges are found by
+  // bucketing vertices on their shared cell-pair keys — O(V)
+  buildGoldbergGeometry() {
+    const cells = this.board.cells;
+
+    const neighbors = Array.from({ length: cells.length }, () => new Set());
+    for (const [a, b] of this.board.edges) {
+      neighbors[a].add(b);
+      neighbors[b].add(a);
+    }
+
+    // Enumerate triangles (a < b < c) of mutually adjacent cells.
+    const vertices = [];
     for (let a = 0; a < cells.length; a++) {
       for (const b of neighbors[a]) {
         if (b <= a) continue;
         for (const c of neighbors[b]) {
           if (c <= b) continue;
-          if (neighbors[a].includes(c)) {
-            const key = [a, b, c].sort((x, y) => x - y).join(",");
-            if (!seenTriangles.has(key)) {
-              seenTriangles.add(key);
-              triangles.push([a, b, c]);
-            }
-          }
+          if (!neighbors[a].has(c)) continue;
+
+          const ca = cells[a];
+          const cb = cells[b];
+          const cc = cells[c];
+          let mx = (ca.x + cb.x + cc.x) / 3;
+          let my = (ca.y + cb.y + cc.y) / 3;
+          let mz = (ca.z + cb.z + cc.z) / 3;
+          const len = Math.sqrt(mx * mx + my * my + mz * mz) || 1;
+          vertices.push({ x: mx / len, y: my / len, z: mz / len, parents: [a, b, c] });
         }
       }
     }
 
-    this.goldbergVertices = triangles.map(([a, b, c]) => {
-      const cellA = cells[a];
-      const cellB = cells[b];
-      const cellC = cells[c];
-
-      let mx = (cellA.x + cellB.x + cellC.x) / 3;
-      let my = (cellA.y + cellB.y + cellC.y) / 3;
-      let mz = (cellA.z + cellB.z + cellC.z) / 3;
-
-      const len = Math.sqrt(mx * mx + my * my + mz * mz);
-      return {
-        x: mx / len,
-        y: my / len,
-        z: mz / len,
-        parentCells: [a, b, c],
-      };
-    });
-
-    this.goldbergEdges = [];
-    for (let i = 0; i < this.goldbergVertices.length; i++) {
-      for (let j = i + 1; j < this.goldbergVertices.length; j++) {
-        const pA = this.goldbergVertices[i].parentCells;
-        const pB = this.goldbergVertices[j].parentCells;
-
-        const sharedCount = pA.filter((cellIndex) => pB.includes(cellIndex)).length;
-
-        if (sharedCount === 2) {
-          this.goldbergEdges.push([i, j]);
-        }
+    // Bucket vertices by each of their three cell-pairs; a pair touched by two
+    // vertices is a Goldberg edge between them.
+    const pairToVertex = new Map();
+    const edges = [];
+    const addPair = (p, q, vi) => {
+      const key = p < q ? p * cells.length + q : q * cells.length + p;
+      const other = pairToVertex.get(key);
+      if (other === undefined) {
+        pairToVertex.set(key, vi);
+      } else {
+        edges.push([other, vi]);
       }
+    };
+    for (let vi = 0; vi < vertices.length; vi++) {
+      const [a, b, c] = vertices[vi].parents;
+      addPair(a, b, vi);
+      addPair(b, c, vi);
+      addPair(a, c, vi);
     }
+
+    return { vertices, edges };
   },
 
-  rotate({ x, y, z }) {
-    const cy = Math.cos(this.rotation.y),
-      sy = Math.sin(this.rotation.y);
-    const cx = Math.cos(this.rotation.x),
-      sx = Math.sin(this.rotation.x);
-    let rx = x * cy - z * sy;
-    let rz = x * sy + z * cy;
-    let ry = y * cx - rz * sx;
-    rz = y * sx + rz * cx;
-    return { x: rx, y: ry, z: rz };
+  buildWireframe({ vertices, edges }) {
+    const positions = new Float32Array(edges.length * 6);
+    for (let i = 0; i < edges.length; i++) {
+      const [a, b] = edges[i];
+      const va = vertices[a];
+      const vb = vertices[b];
+      const o = i * 6;
+      positions[o] = va.x;
+      positions[o + 1] = va.y;
+      positions[o + 2] = va.z;
+      positions[o + 3] = vb.x;
+      positions[o + 4] = vb.y;
+      positions[o + 5] = vb.z;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+    const material = new THREE.LineBasicMaterial({
+      color: COLORS.edge,
+      transparent: true,
+      opacity: 0.5,
+    });
+
+    return new THREE.LineSegments(geometry, material);
   },
 
-  draw() {
-    const ctx = this.ctx;
-    if (!this.width) this.resize();
-    if (!this.dragging) this.rotation.y += this.autoSpin;
+  buildCellPoints(cells) {
+    const positions = new Float32Array(cells.length * 3);
+    const colors = new Float32Array(cells.length * 3);
 
-    ctx.clearRect(0, 0, this.width, this.height);
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      const o = i * 3;
+      positions[o] = cell.x;
+      positions[o + 1] = cell.y;
+      positions[o + 2] = cell.z;
 
-    const radius = Math.min(this.width, this.height) * 0.42;
-    const cx = this.width / 2;
-    const cy = this.height / 2;
-
-    const realPoints = this.goldbergVertices.map((v) => {
-      const r = this.rotate(v);
-      return {
-        sx: cx + r.x * radius,
-        sy: cy - r.y * radius,
-        z: r.z,
-      };
-    });
-
-    ctx.lineWidth = 1.5;
-    for (const [a, b] of this.goldbergEdges) {
-      const pa = realPoints[a];
-      const pb = realPoints[b];
-      if (!pa || !pb) continue;
-
-      const depth = (pa.z + pb.z) / 2;
-
-      ctx.strokeStyle = `rgba(100,116,139,${0.15 + (0.5 * (depth + 1)) / 2})`;
-      ctx.beginPath();
-      ctx.moveTo(pa.sx, pa.sy);
-      ctx.lineTo(pb.sx, pb.sy);
-      ctx.stroke();
+      const color = cell.kind === "pentagon" ? COLORS.pentagon : COLORS.hexagon;
+      colors[o] = color.r;
+      colors[o + 1] = color.g;
+      colors[o + 2] = color.b;
     }
 
-    const points = this.board.cells.map((cell) => {
-      const r = this.rotate(cell);
-      return {
-        sx: cx + r.x * radius,
-        sy: cy - r.y * radius,
-        z: r.z,
-        kind: cell.kind,
-      };
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.045,
+      map: this.pointTexture,
+      vertexColors: true,
+      transparent: true,
+      alphaTest: 0.5,
+      sizeAttenuation: true,
     });
 
-    const order = [];
-    points.forEach((p, i) => p && order.push(i));
-    order.sort((i, j) => points[i].z - points[j].z);
-
-    for (const i of order) {
-      const p = points[i];
-
-      if (p.kind === "hexagon") continue;
-
-      const front = (p.z + 1) / 2;
-      const pentagon = p.kind === "pentagon";
-      const size = (pentagon ? 5 : 3.5) * (0.55 + 0.45 * front);
-      ctx.beginPath();
-      ctx.arc(p.sx, p.sy, size, 0, Math.PI * 2);
-      ctx.fillStyle = pentagon ? `rgba(244,114,182,${0.45 + 0.55 * front})` : `rgba(56,189,248,${0.3 + 0.6 * front})`;
-      ctx.fill();
-    }
+    return new THREE.Points(geometry, material);
   },
 };

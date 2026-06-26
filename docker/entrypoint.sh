@@ -4,8 +4,11 @@
 # so this is fast after the first run.
 set -euo pipefail
 
-echo "==> Fetching dependencies"
+echo "==> Fetching Elixir dependencies"
 mix deps.get
+
+echo "==> Installing JS dependencies (globe.gl)"
+npm install --prefix assets
 
 echo "==> Setting up Ash resources / database (idempotent)"
 mix ash.setup

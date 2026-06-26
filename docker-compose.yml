@@ -36,6 +36,7 @@ services:
       - build:/app/_build
       - deps:/app/deps
       - static:/app/priv/static
+      - node_modules:/app/assets/node_modules
     depends_on:
       db:
         condition: service_healthy
@@ -45,3 +46,4 @@ volumes:
   build:
   deps:
   static:
+  node_modules:

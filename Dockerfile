@@ -18,9 +18,11 @@ ARG ELIXIR_OTP=29
 #   - git, build-essential: compiling hex deps with native code
 #   - curl, unzip, ca-certificates: fetching the Elixir archive
 #   - postgresql-client: pg_isready / psql for convenience
+#   - nodejs, npm: installing JS dependencies (globe.gl) bundled by esbuild
 RUN apt-get update -y \
   && apt-get install -y --no-install-recommends \
      inotify-tools git build-essential curl unzip ca-certificates postgresql-client \
+     nodejs npm \
   && rm -rf /var/lib/apt/lists/*
 
 # Install the exact Elixir version, precompiled for this OTP release.

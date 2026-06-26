@@ -21,7 +21,9 @@ config :mine_sweeper_world, MineSweeperWorld.Repo,
 config :mine_sweeper_world, MineSweeperWorldWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Inside Docker we must bind all interfaces; set PHX_BIND_ALL=true there.
-  http: [ip: if(System.get_env("PHX_BIND_ALL") in ~w(true 1), do: {0, 0, 0, 0}, else: {127, 0, 0, 1})],
+  http: [
+    ip: if(System.get_env("PHX_BIND_ALL") in ~w(true 1), do: {0, 0, 0, 0}, else: {127, 0, 0, 1})
+  ],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

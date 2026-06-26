@@ -1,0 +1,10 @@
+{
+  "name": "mine_sweeper_world_assets",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JavaScript dependencies for MineSweeperWorld, bundled by esbuild.",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.185.0"
+  }
+}
