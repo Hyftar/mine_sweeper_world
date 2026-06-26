@@ -1,4 +1,4 @@
-import SphereBoard from "./hooks/sphere_board";
+import SphereBoard from "./sphere_board";
 
 const hooks = {
   SphereBoard,
