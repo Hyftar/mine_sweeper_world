@@ -1,4 +1,5 @@
 import Config
+config :ash, policies: [show_policy_breakdowns?: true]
 
 # Configure your database
 config :mine_sweeper_world, MineSweeperWorld.Repo,
@@ -68,7 +69,9 @@ config :mine_sweeper_world, MineSweeperWorldWeb.Endpoint,
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :mine_sweeper_world, dev_routes: true
+config :mine_sweeper_world,
+  dev_routes: true,
+  token_signing_secret: "7GORgMd+o6Ax5+tvNNZ3v5JHjcFR7gHR"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

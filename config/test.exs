@@ -1,4 +1,7 @@
 import Config
+config :mine_sweeper_world, token_signing_secret: "O45JsfvKcO6rt5BaGsk1iANeCy3jPFKQ"
+config :bcrypt_elixir, log_rounds: 1
+config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # Configure your database
 #

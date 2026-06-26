@@ -14,81 +14,123 @@
    curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js
    Make sure to look at the daisyUI changelog: https://daisyui.com/docs/changelog/ */
 @plugin "../vendor/daisyui" {
-  themes: false;
+  themes:
+    minesweeper-dark --default --prefersdark,
+    minesweeper-light;
 }
 
 /* daisyUI theme plugin. You can update this file by fetching the latest version with:
   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
   We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
   on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
-@plugin "../vendor/daisyui-theme" {
-  name: "dark";
-  default: false;
+@plugin "daisyui/theme" {
+  name: "minesweeper-dark";
+  default: true;
   prefersdark: true;
-  color-scheme: "dark";
-  --color-base-100: oklch(30.33% 0.016 252.42);
-  --color-base-200: oklch(25.26% 0.014 253.1);
-  --color-base-300: oklch(20.15% 0.012 254.09);
-  --color-base-content: oklch(97.807% 0.029 256.847);
-  --color-primary: oklch(58% 0.233 277.117);
-  --color-primary-content: oklch(96% 0.018 272.314);
-  --color-secondary: oklch(58% 0.233 277.117);
-  --color-secondary-content: oklch(96% 0.018 272.314);
-  --color-accent: oklch(60% 0.25 292.717);
-  --color-accent-content: oklch(96% 0.016 293.756);
-  --color-neutral: oklch(37% 0.044 257.287);
-  --color-neutral-content: oklch(98% 0.003 247.858);
-  --color-info: oklch(58% 0.158 241.966);
-  --color-info-content: oklch(97% 0.013 236.62);
-  --color-success: oklch(60% 0.118 184.704);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
+  color-scheme: dark;
+
+  /* surfaces */
+  --color-base-100: #111a30; /* board frame, cards */
+  --color-base-200: #16213b;
+  --color-base-300: #1f2d4a;
+  --color-base-content: #e8f0ff;
+
+  /* brand / interactive */
+  --color-primary: #26dde0; /* neon turquoise */
+  --color-primary-content: #06232a;
+  --color-secondary: #4da6ff; /* neon blue */
+  --color-secondary-content: #04152b;
+  --color-accent: #b388ff; /* neon purple */
+  --color-accent-content: #1a0f33;
+  --color-neutral: #1a2740;
+  --color-neutral-content: #e8f0ff;
+
+  /* status */
+  --color-info: #4da6ff;
+  --color-info-content: #04152b;
+  --color-success: #4dff88;
+  --color-success-content: #052915;
+  --color-warning: #ffc53d; /* = flag */
+  --color-warning-content: #2a1d00;
+  --color-error: #ff4d6d; /* = mine */
+  --color-error-content: #2a0410;
+
+  /* game-specific */
+  --color-page: #0a0f1e;
+  --color-cell-hidden: #1a2740;
+  --color-cell-open: #0d1424;
+  --color-grid: #2b3d60;
+  --color-flag: #ffc53d;
+  --color-mine: #ff4d6d;
+  --color-num-1: #4da6ff;
+  --color-num-2: #4dff88;
+  --color-num-3: #ff5c7c;
+  --color-num-4: #b388ff;
+  --color-num-5: #ffb84d;
+  --color-num-6: #26dde0;
+  --color-num-7: #ff8ac4;
+  --color-num-8: #9fb3d1;
+
+  /* shape: slightly blocky, retro feel */
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
   --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
+  --border: 1px;
 }
 
-@plugin "../vendor/daisyui-theme" {
-  name: "light";
-  default: true;
+@plugin "daisyui/theme" {
+  name: "minesweeper-light";
+  default: false;
   prefersdark: false;
-  color-scheme: "light";
-  --color-base-100: oklch(98% 0 0);
-  --color-base-200: oklch(96% 0.001 286.375);
-  --color-base-300: oklch(92% 0.004 286.32);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: oklch(70% 0.213 47.604);
-  --color-primary-content: oklch(98% 0.016 73.684);
-  --color-secondary: oklch(55% 0.027 264.364);
-  --color-secondary-content: oklch(98% 0.002 247.839);
-  --color-accent: oklch(0% 0 0);
-  --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(44% 0.017 285.786);
-  --color-neutral-content: oklch(98% 0 0);
-  --color-info: oklch(62% 0.214 259.815);
-  --color-info-content: oklch(97% 0.014 254.604);
-  --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
+  color-scheme: light;
+
+  /* surfaces */
+  --color-base-100: #ffffff; /* board frame, cards */
+  --color-base-200: #f2f8f9;
+  --color-base-300: #e2eff0;
+  --color-base-content: #0b2a2e;
+
+  /* brand / interactive */
+  --color-primary: #0ba5b8; /* deeper turquoise for light bg */
+  --color-primary-content: #ffffff;
+  --color-secondary: #1565c0;
+  --color-secondary-content: #ffffff;
+  --color-accent: #6a3db8;
+  --color-accent-content: #ffffff;
+  --color-neutral: #d4e6e8;
+  --color-neutral-content: #0b2a2e;
+
+  /* status */
+  --color-info: #1565c0;
+  --color-info-content: #ffffff;
+  --color-success: #2e7d32;
+  --color-success-content: #ffffff;
+  --color-warning: #ea8c00; /* = flag */
+  --color-warning-content: #2a1d00;
+  --color-error: #e11d48; /* = mine */
+  --color-error-content: #ffffff;
+
+  /* game-specific */
+  --color-page: #eaf3f4;
+  --color-cell-hidden: #d4e6e8;
+  --color-cell-open: #f5fafb;
+  --color-grid: #b8d4d6;
+  --color-flag: #ea8c00;
+  --color-mine: #e11d48;
+  --color-num-1: #1565c0;
+  --color-num-2: #2e7d32;
+  --color-num-3: #d32f4a;
+  --color-num-4: #6a3db8;
+  --color-num-5: #c77700;
+  --color-num-6: #0e9ca8;
+  --color-num-7: #b83280;
+  --color-num-8: #546e7a;
+
+  /* shape */
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
   --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
+  --border: 1px;
 }
 
 /* Add variants based on LiveView classes */
@@ -100,6 +142,9 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 /* Make LiveView wrapper divs transparent for layout */
-[data-phx-session], [data-phx-teleported-src] { display: contents }
+[data-phx-session],
+[data-phx-teleported-src] {
+  display: contents;
+}
 
 /* This file is for your main application CSS */

@@ -10,12 +10,14 @@ defmodule MineSweeperWorld.Application do
     children = [
       MineSweeperWorldWeb.Telemetry,
       MineSweeperWorld.Repo,
-      {DNSCluster, query: Application.get_env(:mine_sweeper_world, :dns_cluster_query) || :ignore},
+      {DNSCluster,
+       query: Application.get_env(:mine_sweeper_world, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MineSweeperWorld.PubSub},
       # Start a worker by calling: MineSweeperWorld.Worker.start_link(arg)
       # {MineSweeperWorld.Worker, arg},
       # Start to serve requests, typically the last entry
-      MineSweeperWorldWeb.Endpoint
+      MineSweeperWorldWeb.Endpoint,
+      {AshAuthentication.Supervisor, [otp_app: :mine_sweeper_world]}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
