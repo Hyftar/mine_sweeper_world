@@ -1,0 +1,27 @@
+# Build artifacts (host arch — must never leak into the Linux container)
+_build/
+deps/
+.nix-mix/
+.nix-hex/
+.elixir_ls/
+.direnv/
+
+# Generated assets and JS deps
+priv/static/assets/
+assets/node_modules/
+
+# VCS, editors, local tooling
+.git/
+.gitignore
+.expert/
+.dexter/
+
+# Docker / make (not needed inside the image)
+Dockerfile
+.dockerignore
+docker-compose.yml
+Makefile
+
+# OS noise
+.DS_Store
+*.log
