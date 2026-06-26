@@ -87,6 +87,9 @@ defmodule MineSweeperWorldWeb do
       # Core UI components
       import MineSweeperWorldWeb.CoreComponents
 
+      # Utils
+      import MineSweeperWorld.Utils.Wrap
+
       # Common modules used in templates
       alias Phoenix.LiveView.JS
       alias MineSweeperWorldWeb.Layouts

@@ -18,12 +18,12 @@ defmodule MineSweeperWorldWeb.GameLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:min_subdivisions, @min_subdivisions)
-     |> assign(:max_subdivisions, @max_subdivisions)
-     |> assign(:subdivisions, @default_subdivisions)
-     |> push_board()}
+    socket
+    |> assign(:min_subdivisions, @min_subdivisions)
+    |> assign(:max_subdivisions, @max_subdivisions)
+    |> assign(:subdivisions, @default_subdivisions)
+    |> push_board()
+    |> wrap(:ok)
   end
 
   @impl true
@@ -34,7 +34,10 @@ defmodule MineSweeperWorldWeb.GameLive do
       |> max(@min_subdivisions)
       |> min(@max_subdivisions)
 
-    {:noreply, socket |> assign(:subdivisions, subdivisions) |> push_board()}
+    socket
+    |> assign(subdivisions: subdivisions)
+    |> push_board()
+    |> wrap(:noreply)
   end
 
   # Derives the board geometry and pushes it to the hook. Positions/adjacency
@@ -43,11 +46,20 @@ defmodule MineSweeperWorldWeb.GameLive do
     n = socket.assigns.subdivisions
 
     cells =
-      Enum.map(Geometry.cells(n), fn %{index: index, kind: kind, position: {x, y, z}} ->
-        %{index: index, kind: kind, x: x, y: y, z: z}
-      end)
+      Geometry.cells(n)
+      |> Enum.map(
+        fn %{index: index, kind: kind, position: {x, y, z}} ->
+          %{index: index, kind: kind, x: x, y: y, z: z}
+        end
+      )
 
-    board = %{subdivisions: n, cells: cells, edges: Enum.map(Geometry.edges(n), &Tuple.to_list/1)}
+    board = %{
+      subdivisions: n,
+      cells: cells,
+      edges:
+        Geometry.edges(n)
+        |> Enum.map(&Tuple.to_list/1)
+    }
 
     socket
     |> assign(:cell_count, length(cells))
