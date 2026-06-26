@@ -9,6 +9,10 @@ export default {
     this.canvas = this.el.querySelector("canvas");
     this.ctx = this.canvas.getContext("2d");
     this.board = { cells: [], edges: [] };
+
+    this.goldbergVertices = [];
+    this.goldbergEdges = [];
+
     this.rotation = { x: 0, y: 0 };
     this.dragging = false;
     this.last = null;
@@ -16,10 +20,12 @@ export default {
 
     this.handleEvent("board", (board) => {
       this.board = board;
+      this.buildGoldbergGeometry();
     });
 
     this.resize();
     this.onResize = () => this.resize();
+
     window.addEventListener("resize", this.onResize);
 
     this.el.addEventListener("pointerdown", (e) => {
@@ -27,12 +33,14 @@ export default {
       this.last = { x: e.clientX, y: e.clientY };
       this.el.setPointerCapture(e.pointerId);
     });
+
     this.el.addEventListener("pointermove", (e) => {
       if (!this.dragging) return;
       this.rotation.y += (e.clientX - this.last.x) * 0.01;
       this.rotation.x += (e.clientY - this.last.y) * 0.01;
       this.last = { x: e.clientX, y: e.clientY };
     });
+
     const stop = () => (this.dragging = false);
 
     this.el.addEventListener("pointerup", stop);
@@ -63,7 +71,68 @@ export default {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   },
 
-  // Rotate a unit vector around the Y axis then the X axis.
+  buildGoldbergGeometry() {
+    const cells = this.board.cells;
+    if (!cells || cells.length === 0) return;
+
+    const neighbors = Array.from({ length: cells.length }, () => []);
+    for (const [a, b] of this.board.edges) {
+      neighbors[a].push(b);
+      neighbors[b].push(a);
+    }
+
+    const triangles = [];
+    const seenTriangles = new Set();
+
+    for (let a = 0; a < cells.length; a++) {
+      for (const b of neighbors[a]) {
+        if (b <= a) continue;
+        for (const c of neighbors[b]) {
+          if (c <= b) continue;
+          if (neighbors[a].includes(c)) {
+            const key = [a, b, c].sort((x, y) => x - y).join(",");
+            if (!seenTriangles.has(key)) {
+              seenTriangles.add(key);
+              triangles.push([a, b, c]);
+            }
+          }
+        }
+      }
+    }
+
+    this.goldbergVertices = triangles.map(([a, b, c]) => {
+      const cellA = cells[a];
+      const cellB = cells[b];
+      const cellC = cells[c];
+
+      let mx = (cellA.x + cellB.x + cellC.x) / 3;
+      let my = (cellA.y + cellB.y + cellC.y) / 3;
+      let mz = (cellA.z + cellB.z + cellC.z) / 3;
+
+      const len = Math.sqrt(mx * mx + my * my + mz * mz);
+      return {
+        x: mx / len,
+        y: my / len,
+        z: mz / len,
+        parentCells: [a, b, c],
+      };
+    });
+
+    this.goldbergEdges = [];
+    for (let i = 0; i < this.goldbergVertices.length; i++) {
+      for (let j = i + 1; j < this.goldbergVertices.length; j++) {
+        const pA = this.goldbergVertices[i].parentCells;
+        const pB = this.goldbergVertices[j].parentCells;
+
+        const sharedCount = pA.filter((cellIndex) => pB.includes(cellIndex)).length;
+
+        if (sharedCount === 2) {
+          this.goldbergEdges.push([i, j]);
+        }
+      }
+    }
+  },
+
   rotate({ x, y, z }) {
     const cy = Math.cos(this.rotation.y),
       sy = Math.sin(this.rotation.y);
@@ -87,39 +156,49 @@ export default {
     const cx = this.width / 2;
     const cy = this.height / 2;
 
-    // Project every cell centre. `points` is indexed by cell.index.
-    const points = [];
-    for (const cell of this.board.cells) {
-      const r = this.rotate(cell);
-      points[cell.index] = {
+    const realPoints = this.goldbergVertices.map((v) => {
+      const r = this.rotate(v);
+      return {
         sx: cx + r.x * radius,
         sy: cy - r.y * radius,
         z: r.z,
-        kind: cell.kind,
       };
-    }
+    });
 
-    // Adjacency edges, faded by depth so the back of the sphere recedes.
-    ctx.lineWidth = 1;
-    for (const [a, b] of this.board.edges) {
-      const pa = points[a];
-      const pb = points[b];
+    ctx.lineWidth = 1.5;
+    for (const [a, b] of this.goldbergEdges) {
+      const pa = realPoints[a];
+      const pb = realPoints[b];
       if (!pa || !pb) continue;
+
       const depth = (pa.z + pb.z) / 2;
-      ctx.strokeStyle = `rgba(100,116,139,${0.12 + (0.4 * (depth + 1)) / 2})`;
+
+      ctx.strokeStyle = `rgba(100,116,139,${0.15 + (0.5 * (depth + 1)) / 2})`;
       ctx.beginPath();
       ctx.moveTo(pa.sx, pa.sy);
       ctx.lineTo(pb.sx, pb.sy);
       ctx.stroke();
     }
 
-    // Cell centres, painted back-to-front so near cells sit on top.
+    const points = this.board.cells.map((cell) => {
+      const r = this.rotate(cell);
+      return {
+        sx: cx + r.x * radius,
+        sy: cy - r.y * radius,
+        z: r.z,
+        kind: cell.kind,
+      };
+    });
+
     const order = [];
     points.forEach((p, i) => p && order.push(i));
     order.sort((i, j) => points[i].z - points[j].z);
 
     for (const i of order) {
       const p = points[i];
+
+      if (p.kind === "hexagon") continue;
+
       const front = (p.z + 1) / 2;
       const pentagon = p.kind === "pentagon";
       const size = (pentagon ? 5 : 3.5) * (0.55 + 0.45 * front);
