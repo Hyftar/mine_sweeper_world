@@ -14,7 +14,7 @@ defmodule MineSweeperWorldWeb.GameLive do
 
   @default_subdivisions 3
   @min_subdivisions 1
-  @max_subdivisions 8
+  @max_subdivisions 18
 
   @impl true
   def mount(_params, _session, socket) do
@@ -61,7 +61,7 @@ defmodule MineSweeperWorldWeb.GameLive do
       <div class="mx-auto max-w-3xl">
         <h1 class="text-2xl font-semibold">MineSweeperWorld — board preview</h1>
         <p class="mt-1 text-sm opacity-70">
-          {@cell_count} cells (subdivisions {@subdivisions}). Pentagons are highlighted; drag to rotate.
+          {@cell_count} cells (subdivisions {@subdivisions}). Pentagons are red, hexagons are blue; drag to rotate.
         </p>
 
         <form phx-change="set_subdivisions" class="mt-4 flex items-center gap-3">

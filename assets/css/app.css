@@ -23,7 +23,7 @@
   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
   We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
   on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
-@plugin "daisyui/theme" {
+@plugin "../vendor/daisyui-theme" {
   name: "minesweeper-dark";
   default: true;
   prefersdark: true;
@@ -78,7 +78,7 @@
   --border: 1px;
 }
 
-@plugin "daisyui/theme" {
+@plugin "../vendor/daisyui-theme" {
   name: "minesweeper-light";
   default: false;
   prefersdark: false;
