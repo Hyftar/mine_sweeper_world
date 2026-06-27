@@ -9,7 +9,9 @@ export default {
     const canvas = this.el.querySelector("canvas");
     this.renderer = new SphereRenderer(canvas);
 
-    this.handleEvent("board", (board) => this.renderer.setBoard(board));
+    this.handleEvent("board_update", (board) => this.renderer.setBoard(board));
+    // Sparse per-index state updates: `{ updates: [{ index, state }, ...] }`.
+    this.handleEvent("cells_update", ({ updates }) => this.renderer.updateCells(updates));
 
     this.onResize = () => {
       const rect = this.el.getBoundingClientRect();

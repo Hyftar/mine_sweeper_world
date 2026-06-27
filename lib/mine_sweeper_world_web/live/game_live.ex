@@ -2,11 +2,11 @@ defmodule MineSweeperWorldWeb.GameLive do
   @moduledoc """
   Skeleton renderer for the spherical board.
 
-  This is a preview, not the game yet: it builds a board purely from
-  `MineSweeperWorld.Games.Geometry` (no database, no mines) and ships the
-  derived cell positions and adjacency to the `SphereBoard` JS hook, which
-  draws them on a `<canvas>`. Use the slider to change resolution and drag to
-  rotate.
+  This is a preview, not the game yet (no database, no real mines). The server
+  manages only cell *state* by index: it ships `{subdivisions, states}` to the
+  `SphereBoard` JS hook, which reconstructs all geometry (positions/adjacency)
+  client-side from the subdivision count. Use the slider to change resolution and
+  drag to rotate.
   """
   use MineSweeperWorldWeb, :live_view
 
@@ -15,6 +15,9 @@ defmodule MineSweeperWorldWeb.GameLive do
   @default_subdivisions 3
   @min_subdivisions 1
   @max_subdivisions 18
+
+  # Distinct states the client understands, for the scatter demo.
+  @cell_states ~w(hidden open flagged mine one two three four five six seven eight)
 
   @impl true
   def mount(_params, _session, socket) do
@@ -40,30 +43,35 @@ defmodule MineSweeperWorldWeb.GameLive do
     |> wrap(:noreply)
   end
 
-  # Derives the board geometry and pushes it to the hook. Positions/adjacency
-  # come straight from `Geometry`, the same generator the rest of the app uses.
-  defp push_board(socket) do
-    n = socket.assigns.subdivisions
+  # Demonstrates partial updates: flips a handful of random cells and pushes only
+  # those via the "cells" event (no full board re-send, no geometry).
+  def handle_event("scatter_cells", _params, socket) do
+    count = socket.assigns.cell_count
 
-    cells =
-      Geometry.cells(n)
-      |> Enum.map(
-        fn %{index: index, kind: kind, position: {x, y, z}} ->
-          %{index: index, kind: kind, x: x, y: y, z: z, state: mock_state(index)}
+    updates =
+      Enum.map(
+        1..min(12, count),
+        fn _ ->
+          %{index: :rand.uniform(count) - 1, state: Enum.random(@cell_states)}
         end
       )
 
-    board = %{
-      subdivisions: n,
-      cells: cells,
-      edges:
-        Geometry.edges(n)
-        |> Enum.map(&Tuple.to_list/1)
-    }
+    socket
+    |> push_event("cells_update", %{updates: updates})
+    |> wrap(:noreply)
+  end
+
+  # Pushes the per-index cell states to the hook. No geometry is sent: the client
+  # reconstructs positions/adjacency from `subdivisions` alone. Indices match
+  # `Geometry`'s canonical ordering, which the JS generator mirrors.
+  defp push_board(socket) do
+    n = socket.assigns.subdivisions
+    count = Geometry.cell_count(n)
+    states = Enum.map(0..(count - 1), &mock_state/1)
 
     socket
-    |> assign(:cell_count, length(cells))
-    |> push_event("board", board)
+    |> assign(:cell_count, count)
+    |> push_event("board_update", %{subdivisions: n, states: states})
   end
 
   # Mock cell states until the real game logic exists. Deterministic per index
@@ -97,6 +105,10 @@ defmodule MineSweeperWorldWeb.GameLive do
             class="w-64"
           />
           <span class="text-sm tabular-nums">{@subdivisions}</span>
+
+          <button type="button" phx-click="scatter_cells" class="btn btn-sm btn-primary">
+            Scatter cells
+          </button>
         </form>
 
         <div

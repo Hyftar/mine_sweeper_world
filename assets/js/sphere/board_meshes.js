@@ -1,28 +1,10 @@
-// Builds the Three.js meshes for the board: filled faces, borders, and glyphs.
+// Pure builders for the board's Three.js meshes: filled faces, borders, glyphs.
+// Lifecycle/ownership lives in `board_view`; these functions just create meshes.
 import * as THREE from "three";
 import { cellCornersOf, faceFrame } from "./goldberg.js";
-import { GlyphAtlas, glyphForState, glyphColor } from "./glyph_atlas.js";
+import { glyphForState, glyphColor } from "./glyph_atlas.js";
 
 const GLYPH_LIFT = 1.002; // radial offset so glyphs render just above the fill
-
-// Owns the glyph atlas and assembles the per-board mesh list. One factory lives
-// for the renderer's lifetime; `dispose` releases the shared atlas texture.
-export class BoardMeshFactory {
-  constructor() {
-    this.atlas = new GlyphAtlas();
-  }
-
-  build(cells, goldberg, scheme) {
-    const meshes = [buildFaces(cells, goldberg, scheme), buildBorders(goldberg, scheme)];
-    const glyphs = buildGlyphs(cells, goldberg, scheme, this.atlas);
-    if (glyphs) meshes.push(glyphs);
-    return meshes;
-  }
-
-  dispose() {
-    this.atlas.dispose();
-  }
-}
 
 // Base fill for a cell: only "hidden" and "flagged" read as covered tiles;
 // open/mine/numbered cells share the revealed background.
@@ -30,20 +12,24 @@ function faceFill(state, scheme) {
   return state === "hidden" || state === "flagged" ? scheme.hiddenFill : scheme.revealedFill;
 }
 
-// Filled hexagon/pentagon faces. Each cell is one face whose corners are the
-// Goldberg vertices that share the cell as a parent; corners are sorted around
-// the cell normal and triangulated as a fan, coloured by the cell state.
-function buildFaces(cells, { vertices }, scheme) {
+// Filled hexagon/pentagon faces, coloured by cell state. Returns the mesh plus
+// per-cell vertex ranges into the colour buffer, so individual cells can be
+// recoloured in place (see `updateFaceColors`) without rebuilding the geometry.
+export function buildFaces(cells, { vertices }, scheme) {
   const cellCorners = cellCornersOf(cells.length, vertices);
 
   const positions = [];
   const colors = [];
+  const ranges = new Array(cells.length).fill(null);
+
   for (let ci = 0; ci < cells.length; ci++) {
     const corners = cellCorners[ci];
     if (corners.length < 3) continue;
 
     const fill = faceFill(cells[ci].state, scheme);
     const { ordered } = faceFrame(cells[ci], corners, vertices);
+
+    const start = positions.length / 3;
 
     // Triangle fan from the first corner.
     const v0 = ordered[0];
@@ -56,6 +42,8 @@ function buildFaces(cells, { vertices }, scheme) {
         colors.push(fill.r, fill.g, fill.b);
       }
     }
+
+    ranges[ci] = { start, count: positions.length / 3 - start };
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -71,10 +59,28 @@ function buildFaces(cells, { vertices }, scheme) {
     polygonOffsetUnits: 1,
   });
 
-  return new THREE.Mesh(geometry, material);
+  return { mesh: new THREE.Mesh(geometry, material), ranges };
 }
 
-function buildBorders({ vertices, edges }, scheme) {
+// Recolours only the given cell indices in place, updating the shared colour
+// buffer rather than rebuilding the faces.
+export function updateFaceColors(faces, cells, indices, scheme) {
+  if (!faces) return;
+  const color = faces.mesh.geometry.getAttribute("color");
+
+  for (const ci of indices) {
+    const range = faces.ranges[ci];
+    if (!range) continue;
+    const fill = faceFill(cells[ci].state, scheme);
+    for (let v = 0; v < range.count; v++) {
+      color.setXYZ(range.start + v, fill.r, fill.g, fill.b);
+    }
+  }
+
+  color.needsUpdate = true;
+}
+
+export function buildBorders({ vertices, edges }, scheme) {
   const positions = new Float32Array(edges.length * 6);
   for (let i = 0; i < edges.length; i++) {
     const [a, b] = edges[i];
@@ -103,7 +109,7 @@ function buildBorders({ vertices, edges }, scheme) {
 // per-vertex colours — so the glyph sits flat on the surface, rotates with the
 // sphere, and stays theme-aware without re-baking. The whole layer is a single
 // draw call, pushed a hair outward to sit cleanly above the fill.
-function buildGlyphs(cells, { vertices }, scheme, atlas) {
+export function buildGlyphs(cells, { vertices }, scheme, atlas) {
   const cellCorners = cellCornersOf(cells.length, vertices);
 
   const positions = [];
