@@ -4,6 +4,12 @@
   "private": true,
   "description": "JavaScript dependencies for MineSweeperWorld, bundled by esbuild.",
   "license": "MIT",
+  "scripts": {
+    "test": "NODE_NO_WARNINGS=1 node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "three": "^0.185.0"
   }

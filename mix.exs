@@ -90,6 +90,7 @@ defmodule MineSweeperWorld.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ash.setup --quiet", "test"],
+      "assets.test": ["cmd npm test --prefix assets"],
       "assets.setup": [
         "tailwind.install --if-missing",
         "esbuild.install --if-missing",
