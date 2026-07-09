@@ -17,9 +17,7 @@ defmodule MineSweeperWorldWeb.Router do
   scope "/", MineSweeperWorldWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
-
-    live "/play", GameLive
+    live "/", GameLive
   end
 
   # Other scopes may use custom stacks.
