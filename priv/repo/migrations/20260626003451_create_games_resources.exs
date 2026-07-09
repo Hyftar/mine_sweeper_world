@@ -41,7 +41,8 @@ defmodule MineSweeperWorld.Repo.Migrations.CreateGamesResources do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
 
       add :user_id,
           references(:users,
@@ -50,7 +51,8 @@ defmodule MineSweeperWorld.Repo.Migrations.CreateGamesResources do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:game_memberships, [:game_id, :user_id],
@@ -81,7 +83,8 @@ defmodule MineSweeperWorld.Repo.Migrations.CreateGamesResources do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:cells, [:game_id, :index], name: "cells_unique_cell_index_index")
@@ -96,7 +99,8 @@ defmodule MineSweeperWorld.Repo.Migrations.CreateGamesResources do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
 
       add :neighbor_id,
           references(:cells,
@@ -105,7 +109,8 @@ defmodule MineSweeperWorld.Repo.Migrations.CreateGamesResources do
             type: :uuid,
             prefix: "public",
             on_delete: :delete_all
-          ), null: false
+          ),
+          null: false
     end
 
     create unique_index(:cell_adjacencies, [:cell_id, :neighbor_id],

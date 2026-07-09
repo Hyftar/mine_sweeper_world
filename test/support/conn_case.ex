@@ -35,4 +35,21 @@ defmodule MineSweeperWorldWeb.ConnCase do
     MineSweeperWorld.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Setup helper that registers a user and logs them into the connection.
+
+      setup :register_and_log_in_user
+  """
+  def register_and_log_in_user(%{conn: conn}) do
+    user = MineSweeperWorld.DataCase.create_user()
+    %{conn: log_in_user(conn, user), user: user}
+  end
+
+  @doc "Stores `user` in the connection session as ash_authentication expects."
+  def log_in_user(conn, user) do
+    conn
+    |> Phoenix.ConnTest.init_test_session(%{})
+    |> AshAuthentication.Plug.Helpers.store_in_session(user)
+  end
 end

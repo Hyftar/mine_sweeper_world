@@ -41,7 +41,7 @@ defmodule MineSweeperWorld.Games.Game do
 
     create :create do
       primary? true
-      accept [:subdivisions, :mine_count, :seed]
+      accept [:subdivisions, :mine_count, :seed, :time_limit_seconds]
 
       # Enroll the creating user as the game's first player. `relate_actor`
       # only supports to-one relationships, so we append the actor to the
@@ -55,18 +55,22 @@ defmodule MineSweeperWorld.Games.Game do
     end
 
     update :start do
+      change set_attribute(:started_at, &DateTime.utc_now/0)
       change transition_state(:playing)
     end
 
     update :win do
+      change set_attribute(:finished_at, &DateTime.utc_now/0)
       change transition_state(:won)
     end
 
     update :lose do
+      change set_attribute(:finished_at, &DateTime.utc_now/0)
       change transition_state(:lost)
     end
 
     update :abandon do
+      change set_attribute(:finished_at, &DateTime.utc_now/0)
       change transition_state(:abandoned)
     end
   end
@@ -84,6 +88,13 @@ defmodule MineSweeperWorld.Games.Game do
 
     attribute :mine_count, :integer do
       allow_nil? false
+      public? true
+      constraints min: 1
+    end
+
+    attribute :time_limit_seconds, :integer do
+      description "Maximum time allowed for the playthrough; nil means untimed."
+      allow_nil? true
       public? true
       constraints min: 1
     end

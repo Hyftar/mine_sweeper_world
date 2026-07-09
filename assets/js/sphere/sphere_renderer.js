@@ -21,6 +21,16 @@ export class SphereRenderer {
     this.running = false;
     this.raf = null;
 
+    // Game phase drives the pentagon "pick your start" flashing. One of
+    // "picking" | "playing" | "over"; defaults to playing (the mock preview).
+    this.phase = "playing";
+    this.markers = [];
+
+    // Picking: a click is turned into the nearest cell by intersecting the
+    // camera ray with the unit sphere and taking the closest cell centre.
+    this.raycaster = new THREE.Raycaster();
+    this.unitSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 1);
+
     this.initScene(canvas);
   }
 
@@ -47,18 +57,74 @@ export class SphereRenderer {
     this.controls.autoRotateSpeed = 0.2;
   }
 
-  // Receives `{ subdivisions, states }`. Geometry is (re)generated only when the
-  // subdivision count changes; otherwise just the per-index states are updated.
-  setBoard({ subdivisions, states }) {
+  // Receives `{ subdivisions, states, phase }`. Geometry is (re)generated only
+  // when the subdivision count changes; otherwise just the per-index states are
+  // updated. `phase` (optional) toggles the pentagon flashing.
+  setBoard({ subdivisions, states, phase }) {
     if (subdivisions !== this.subdivisions || this.cells.length === 0) {
       this.subdivisions = subdivisions;
       const { cells, edges } = buildBoardGeometry(subdivisions);
       this.cells = cells;
       this.goldberg = buildGoldbergGeometry(cells, edges);
+      this.buildMarkers();
     }
 
+    if (phase !== undefined) this.phase = phase;
     this.applyStates(states);
     this.rebuild();
+  }
+
+  // Pick the cell nearest to where a screen-space click meets the sphere.
+  // Returns a cell index, or null when the click misses the sphere.
+  pickCell(clientX, clientY) {
+    if (this.cells.length === 0) return null;
+
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+
+    const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+
+    const hit = new THREE.Vector3();
+    if (!this.raycaster.ray.intersectSphere(this.unitSphere, hit)) return null;
+
+    let best = -1;
+    let bestDot = -Infinity;
+    for (let i = 0; i < this.cells.length; i++) {
+      const c = this.cells[i];
+      const dot = hit.x * c.x + hit.y * c.y + hit.z * c.z;
+      if (dot > bestDot) {
+        bestDot = dot;
+        best = i;
+      }
+    }
+    return best === -1 ? null : best;
+  }
+
+  // Small glowing dots over the twelve pentagons, pulsed while the player is
+  // choosing a starting pentagon. Built once per geometry; hidden otherwise.
+  buildMarkers() {
+    this.disposeMarkers();
+    const geometry = new THREE.SphereGeometry(0.045, 12, 12);
+    for (let i = 0; i < 12 && i < this.cells.length; i++) {
+      const c = this.cells[i];
+      const material = new THREE.MeshBasicMaterial({ transparent: true });
+      const marker = new THREE.Mesh(geometry.clone(), material);
+      marker.position.set(c.x * 1.01, c.y * 1.01, c.z * 1.01);
+      marker.visible = false;
+      this.markers.push(marker);
+      this.scene.add(marker);
+    }
+    geometry.dispose();
+  }
+
+  disposeMarkers() {
+    this.markers.forEach((m) => {
+      this.scene.remove(m);
+      m.geometry.dispose();
+      m.material.dispose();
+    });
+    this.markers = [];
   }
 
   applyStates(states) {
@@ -111,10 +177,32 @@ export class SphereRenderer {
     const loop = () => {
       if (!this.running) return;
       this.controls.update();
+      this.animateMarkers();
       this.renderer.render(this.scene, this.camera);
       this.raf = requestAnimationFrame(loop);
     };
     loop();
+  }
+
+  // Flash the pentagon markers while picking; keep them hidden otherwise.
+  animateMarkers() {
+    if (this.markers.length === 0) return;
+
+    const picking = this.phase === "picking";
+    if (!picking) {
+      this.markers.forEach((m) => (m.visible = false));
+      return;
+    }
+
+    const scheme = activeScheme();
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
+    for (const m of this.markers) {
+      m.visible = true;
+      m.material.color.copy(scheme.flag);
+      m.material.opacity = 0.35 + 0.55 * pulse;
+      const s = 0.85 + 0.4 * pulse;
+      m.scale.setScalar(s);
+    }
   }
 
   stop() {
@@ -126,6 +214,7 @@ export class SphereRenderer {
     this.stop();
     this.meshes.forEach((mesh) => this.scene.remove(mesh));
     this.meshes = [];
+    this.disposeMarkers();
     this.view.dispose();
     this.controls.dispose();
     this.renderer.dispose();

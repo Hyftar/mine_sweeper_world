@@ -2,8 +2,8 @@ defmodule MineSweeperWorld.Games.Cell do
   @moduledoc """
   A single cell on the spherical board.
 
-  A hexagonal grid cannot tile a sphere on its own — closing it requires
-  exactly twelve pentagons (Euler's formula) — so each cell's `kind` is either
+  A hexagonal grid cannot tile a sphere on its own - closing it requires
+  exactly twelve pentagons (Euler's formula) - so each cell's `kind` is either
   `:hexagon` or `:pentagon`.
 
   No geometry is persisted. The board layout is a pure function of the game's
@@ -51,6 +51,12 @@ defmodule MineSweeperWorld.Games.Cell do
     create :create do
       primary? true
       accept [:index, :kind, :mine?, :adjacent_mine_count, :game_id]
+    end
+
+    # Board setup only: stamp mines and neighbour counts onto freshly-created
+    # cells. Not part of the reveal/flag lifecycle, so it is a plain update.
+    update :place do
+      accept [:mine?, :adjacent_mine_count]
     end
 
     update :reveal do

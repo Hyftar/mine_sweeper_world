@@ -19,6 +19,7 @@ defmodule MineSweeperWorld.Games do
 
     resource MineSweeperWorld.Games.Cell do
       define :create_cell, action: :create
+      define :place_cell, action: :place
       define :reveal_cell, action: :reveal
       define :flag_cell, action: :flag
       define :unflag_cell, action: :unflag

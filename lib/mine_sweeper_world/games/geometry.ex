@@ -50,23 +50,25 @@ defmodule MineSweeperWorld.Games.Geometry do
 
   # The 30 icosahedron edges as sorted {min, max} vertex pairs, in a canonical
   # order so the client and server agree on edge ids without coordinating.
-  @edge_list (
-               @faces
-               |> Enum.flat_map(fn {a, b, c} ->
-                 [{min(a, b), max(a, b)}, {min(b, c), max(b, c)}, {min(a, c), max(a, c)}]
-               end)
-               |> Enum.uniq()
-               |> Enum.sort()
-             )
+  @edge_list @faces
+             |> Enum.flat_map(fn {a, b, c} ->
+               [{min(a, b), max(a, b)}, {min(b, c), max(b, c)}, {min(a, c), max(a, c)}]
+             end)
+             |> Enum.uniq()
+             |> Enum.sort()
 
   @edges_tuple List.to_tuple(@edge_list)
-  @edge_id (for {pair, id} <- Enum.with_index(@edge_list), into: %{}, do: {pair, id})
+  @edge_id for {pair, id} <- Enum.with_index(@edge_list), into: %{}, do: {pair, id}
 
   # edge id -> the two faces that share it.
   @edge_faces (for {pair, id} <- Enum.with_index(@edge_list), into: %{} do
                  faces =
                    for {{a, b, c}, fid} <- Enum.with_index(@faces),
-                       pair in [{min(a, b), max(a, b)}, {min(b, c), max(b, c)}, {min(a, c), max(a, c)}],
+                       pair in [
+                         {min(a, b), max(a, b)},
+                         {min(b, c), max(b, c)},
+                         {min(a, c), max(a, c)}
+                       ],
                        do: fid
 
                  {id, faces}
@@ -102,7 +104,8 @@ defmodule MineSweeperWorld.Games.Geometry do
   """
   @spec neighbours(pos_integer(), non_neg_integer()) :: [non_neg_integer()]
   def neighbours(n, index)
-      when is_integer(n) and n >= 1 and is_integer(index) and index >= 0 and index < 10 * n * n + 2 do
+      when is_integer(n) and n >= 1 and is_integer(index) and index >= 0 and
+             index < 10 * n * n + 2 do
     n
     |> incident_reps(index)
     |> Enum.flat_map(fn {f, i, j} ->

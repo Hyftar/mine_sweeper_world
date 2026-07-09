@@ -41,6 +41,25 @@ defmodule MineSweeperWorld.DataCase do
   end
 
   @doc """
+  Registers a confirmed-enough user for tests. Returns the `%User{}` with a
+  session token in its metadata (so it can be logged in via `store_in_session`).
+  """
+  def create_user(attrs \\ %{}) do
+    n = System.unique_integer([:positive])
+
+    attrs =
+      Enum.into(attrs, %{
+        email: "user#{n}@example.com",
+        password: "password1234",
+        password_confirmation: "password1234"
+      })
+
+    MineSweeperWorld.Accounts.User
+    |> Ash.Changeset.for_create(:register_with_password, attrs)
+    |> Ash.create!(authorize?: false)
+  end
+
+  @doc """
   A helper that transforms changeset errors into a map of messages.
 
       assert {:error, changeset} = Accounts.create_user(%{password: "short"})
